@@ -1,0 +1,77 @@
+
+
+
+{
+    "fp1" : {
+
+	"function" : [
+	    {
+		"name" : "fp1-fn1",
+		"rd-top" : "290:1101",
+		"rd-bottom" :"290:1201",
+		"mark" : 1,
+		"cgn" : false
+	    },
+	    {
+		"name" : "fp1-fn2",
+		"rd-top" : "290:1102",
+		"rd-bottom" :"290:1202",
+		"mark" : 2,
+		"cgn" : false
+	    },
+	    {
+		"name" : "fp1-cgn",
+		"rd-top" : "290:1104",
+		"rd-bottom" :"290:1204",
+		"mark" : 4,
+		"cgn" : true
+	    }
+	],
+
+	"inter-fp-rd" : {
+	    "fp2" : "290:1002"
+	},
+
+	"user-vrf-rd" : {
+	    "fp1-global" : "290:1400",
+	    "fp1-private" : "290:1500"
+	}
+    },
+
+    "fp2" : {
+
+	"function" : [
+	    {
+		"name" : "fp2-fn1",
+		"rd-top" : "290:2101",
+		"rd-bottom" :"290:2201",
+		"mark" : 1,
+		"cgn" : false
+	    },
+	    {
+		"name" : "fp2-fn2",
+		"rd-top" : "290:2102",
+		"rd-bottom" :"290:2202",
+		"mark" : 2,
+		"cgn" : false
+	    },
+	    {
+		"name" : "fp2-cgn",
+		"rd-top" : "290:2104",
+		"rd-bottom" :"290:2204",
+		"mark" : 4,
+		"cgn" : true
+	    }
+	],
+
+	"inter-fp-rd" : {
+	    "fp1" : "290:2001"
+	},
+
+	"user-vrf-rd" : {
+	    "fp2-global" : "290:2400",
+	    "fp2-private" : "290:2500"
+	}
+    }
+}
+
