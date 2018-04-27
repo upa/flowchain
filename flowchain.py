@@ -5,6 +5,7 @@ import re
 import os
 import sys
 import json
+import time
 
 from logging import getLogger, DEBUG, StreamHandler, Formatter
 from logging.handlers import SysLogHandler
@@ -303,7 +304,7 @@ class Flow :
                    + "then {{"
                    + "extended-community target:{rd}; "
                    + "{mark} "
-                   + "reidrect {redirect};"
+                   + "redirect {redirect};"
                    + "}} }}")
 
         # Step 1. User VRF to 1st VRF
@@ -378,7 +379,7 @@ class Flow :
                    + "match {{ destination {prefix}; }} "
                    + "then {{"
                    + "{mark} "
-                   + "reidrect {redirect};"
+                   + "redirect {redirect};"
                    + "}} }}")
 
         last_fn = fps.find_function_by_name(self.chain[len(self.chain) - 1])
@@ -396,7 +397,7 @@ class Flow :
             else :
                 # For different FP flow route
                 inter_fp_rd = fps.find_inter_fp_rd(fp, last_fn.fp)
-                mark = "mark : %d;" % last_fn.mark
+                mark = "mark %d;" % last_fn.mark
                 iroute = flowfmt.format(prefix = prefix,
                                         redirect = inter_fp_rd,
                                         mark = mark)
@@ -407,17 +408,25 @@ class Flow :
 
     def announce(self) :
         for r in self.eroutes :
-            print("announce %s" % r)
+            sys.stdout.write("announce %s\n" % r)
+            sys.stdout.flush()
+            time.sleep(0.2)
         for r in self.iroutes :
-            print("announce %s" % r)
+            sys.stdout.write("announce %s\n" % r)
+            sys.stdout.flush()
+            time.sleep(0.2)
         return
         
 
     def withdraw(self) :
         for r in self.eroutes :
-            print("withdraw %s" % r)
+            sys.stdout.write("withdraw %s\n" % r)
+            sys.stdout.flush()
+            time.sleep(0.2)
         for r in self.iroutes :
-            print("withdraw %s" % r)
+            sys.stdout.write("withdraw %s\n" % r)
+            sys.stdout.flush()
+            time.sleep(0.2)
         return
 
     
