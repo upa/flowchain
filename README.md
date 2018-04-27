@@ -8,8 +8,8 @@
 method is GET or POST. Note that if not use NAT, use `none` for prefix_natted
 and preflen_natted.
 
-- ADD: http://IPADDR/add/<prefix>/<preflen>/<prefix_natted>/<preflen_natted>/<start>/<chain_string>
-- DELETE: http://IPADDR/del/<prefix>/<preflen>
+- ADD: http://IPADDR/add/PREFIX/PREFLEN/PREFIX_NATTED/PREFLEN_NATTEX/USERVRF/CHAIN_STRING
+- DELETE: http://IPADDR/del/PREFIX/PREFLEN
 
 
 #### Show Flows
@@ -19,9 +19,9 @@ and preflen_natted.
 - http://IPADDR/show/flow/url
 
 
-Example
+#### Example using [HTTPie](https://httpie.org/).
 
-using [HTTPie](https://httpie.org/).
+##### Add flows.
 
 ```shell-session
 % http POST http://172.16.0.227:5000/add/10.1.1.0/24/192.168.255.1/32/fp1-private/fp1-fn1_fp1-cgn
@@ -50,7 +50,12 @@ Date: Fri, 27 Apr 2018 14:45:42 GMT
 Server: Werkzeug/0.12.2-dev Python/3.6.3
 
 Flow : <192.168.3.0/24:['fp1-fn1', 'fp2-fn2']> is added
+```
 
+
+##### Show flows
+
+```shell-session
 % http GET http://172.16.0.227:5000/show/flow
 HTTP/1.0 200 OK
 Content-Length: 317
@@ -72,7 +77,12 @@ Prefix 192.168.3.0/24
     Natted Prefix: None
     User VRF: fp1-private
     Chain: fp1-fn1 fp2-fn2
+```
 
+
+with extensive option.
+
+```shell-session
 % http GET http://172.16.0.227:5000/show/flow/extensive
 HTTP/1.0 200 OK
 Content-Length: 2098
@@ -115,7 +125,12 @@ flow route { rd 290:1101; match { source 192.168.3.0/24; } then {extended-commun
 flow route { rd 290:2202; match { destination 192.168.3.0/24; } then {extended-community target:290:2202; mark 1; reidrect 290:2001;} }
 flow route { match { destination 192.168.3.0/24; } then {mark : 2; reidrect 290:1002;} }
 flow route { match { destination 192.168.3.0/24; } then { reidrect 290:2102;} }
+```
 
+
+with url option.
+
+```shell-session
 % http GET http://172.16.0.227:5000/show/flow/url
 HTTP/1.0 200 OK
 Content-Length: 181
