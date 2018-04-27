@@ -8,15 +8,15 @@
 method is GET or POST. Note that if not use NAT, use `none` for prefix_natted
 and preflen_natted. CHAIN_STRING is "_".join(function_names).
 
-- ADD: http://IPADDR/add/PREFIX/PREFLEN/PREFIX_NATTED/PREFLEN_NATTED/USERVRF/CHAIN_STRING
-- DELETE: http://IPADDR/del/PREFIX/PREFLEN
+- ADD: http://SERVERADDR/add/PREFIX/PREFLEN/PREFIX_NATTED/PREFLEN_NATTED/USERVRF/CHAIN_STRING
+- DELETE: http://SERVERADDR/del/PREFIX/PREFLEN
 
 
 #### Show Flows
 
-- http://IPADDR/show/flow
-- http://IPADDR/show/flow/extensive
-- http://IPADDR/show/flow/url
+- http://SERVERADDR/show/flow
+- http://SERVERADDR/show/flow/extensive
+- http://SERVERADDR/show/flow/url
 
 
 #### Example using [HTTPie](https://httpie.org/).

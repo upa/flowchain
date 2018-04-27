@@ -46,11 +46,12 @@ CONFIG_JSON = os.path.join(os.path.dirname(__file__), 'config.json')
 
 class Function :
 
-    def __init__(self, name, rdtop, rdbot, mark, cgn) :
+    def __init__(self, name, rdtop, rdbot, marktop, markbot,  cgn) :
         self.name = name
         self.rdtop = rdtop
         self.rdbot = rdbot
-        self.mark = mark
+        self.marktop = marktop
+        self.markbot = markbot
         self.cgn = cgn
         self.fp = None
         return
@@ -344,12 +345,12 @@ class Flow :
             if prev_fn.fp != next_fn.fp :
                 # Egress
                 inter_fp_rd = fps.find_inter_fp_rd(prev_fn.fp, next_fn.fp)
-                mark_egress = "mark %d;" % next_fn.mark
+                mark_egress = "mark %d;" % next_fn.markbot
                 redirect_egress = inter_fp_rd
 
                 # Ingress
                 inter_fp_rd = fps.find_inter_fp_rd(next_fn.fp, prev_fn.fp)
-                mark_ingress = "mark %d;" % prev_fn.mark
+                mark_ingress = "mark %d;" % prev_fn.marktop
                 redirect_ingress = inter_fp_rd
 
             if cgn_passed and self.prefix_natted :
@@ -397,7 +398,7 @@ class Flow :
             else :
                 # For different FP flow route
                 inter_fp_rd = fps.find_inter_fp_rd(fp, last_fn.fp)
-                mark = "mark %d;" % last_fn.mark
+                mark = "mark %d;" % last_fn.marktop
                 iroute = flowfmt.format(prefix = prefix,
                                         redirect = inter_fp_rd,
                                         mark = mark)
@@ -510,7 +511,8 @@ def load_config(configjson) :
         for f in v["function"] :
             log.info("Add Function %s to %s" % (f["name"], fpname))
 
-            fn = Function(f["name"], f["rd-top"], f["rd-bottom"], f["mark"],
+            fn = Function(f["name"], f["rd-top"], f["rd-bottom"],
+                          f["mark-top"], f["mark-bottom"],
                           f["cgn"])
             fp.add_function(fn)
 

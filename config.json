@@ -9,21 +9,24 @@
 		"name" : "fp1-fn1",
 		"rd-top" : "290:1101",
 		"rd-bottom" :"290:1201",
-		"mark" : 1,
+		"mark-top" : 1,
+		"mark-bottom" : 31,
 		"cgn" : false
 	    },
 	    {
 		"name" : "fp1-fn2",
 		"rd-top" : "290:1102",
 		"rd-bottom" :"290:1202",
-		"mark" : 2,
+		"mark-top" : 2,
+		"mark-bottom" : 32,
 		"cgn" : false
 	    },
 	    {
 		"name" : "fp1-cgn",
 		"rd-top" : "290:1104",
 		"rd-bottom" :"290:1204",
-		"mark" : 4,
+		"mark-top" : 4,
+		"mark-bottom" : 41,
 		"cgn" : true
 	    }
 	],
@@ -45,21 +48,24 @@
 		"name" : "fp2-fn1",
 		"rd-top" : "290:2101",
 		"rd-bottom" :"290:2201",
-		"mark" : 1,
+		"mark-top" : 1,
+		"mark-bottom" : 31,
 		"cgn" : false
 	    },
 	    {
 		"name" : "fp2-fn2",
 		"rd-top" : "290:2102",
 		"rd-bottom" :"290:2202",
-		"mark" : 2,
+		"mark-top" : 2,
+		"mark-bottom" : 32,
 		"cgn" : false
 	    },
 	    {
 		"name" : "fp2-cgn",
 		"rd-top" : "290:2104",
 		"rd-bottom" :"290:2204",
-		"mark" : 4,
+		"mark-top" : 4,
+		"mark-bottom" : 34,
 		"cgn" : true
 	    }
 	],
