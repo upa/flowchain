@@ -95,36 +95,36 @@ Prefix 10.1.1.0/24
     User VRF: fp1-private
     Chain: fp1-fn1 fp1-cgn
     ExaBGP Egress Routes:
-flow route { rd 290:1500; match { source 10.1.1.0/24; } then {extended-community target:290:1500;  reidrect 290:1201;} }
-flow route { rd 290:1101; match { source 10.1.1.0/24; } then {extended-community target:290:1101;  reidrect 290:1204;} }
+flow route { rd 290:1500; match { source 10.1.1.0/24; } then {extended-community target:290:1500;  redirect 290:1201;} }
+flow route { rd 290:1101; match { source 10.1.1.0/24; } then {extended-community target:290:1101;  redirect 290:1204;} }
     ExaBGP Ingress Routes:
-flow route { rd 290:1204; match { destination 10.1.1.0/24; } then {extended-community target:290:1204;  reidrect 290:1101;} }
-flow route { match { destination 10.1.1.0/24; } then { reidrect 290:1104;} }
-flow route { match { destination 10.1.1.0/24; } then {mark : 4; reidrect 290:2001;} }
+flow route { rd 290:1204; match { destination 10.1.1.0/24; } then {extended-community target:290:1204;  redirect 290:1101;} }
+flow route { match { destination 10.1.1.0/24; } then { redirect 290:1104;} }
+flow route { match { destination 10.1.1.0/24; } then {mark 4; redirect 290:2001;} }
 
 Prefix 10.1.2.0/24
     Natted Prefix: 192.168.255.2/32
     User VRF: fp1-private
     Chain: fp1-fn1 fp1-cgn
     ExaBGP Egress Routes:
-flow route { rd 290:1500; match { source 10.1.2.0/24; } then {extended-community target:290:1500;  reidrect 290:1201;} }
-flow route { rd 290:1101; match { source 10.1.2.0/24; } then {extended-community target:290:1101;  reidrect 290:1204;} }
+flow route { rd 290:1500; match { source 10.1.2.0/24; } then {extended-community target:290:1500;  redirect 290:1201;} }
+flow route { rd 290:1101; match { source 10.1.2.0/24; } then {extended-community target:290:1101;  redirect 290:1204;} }
     ExaBGP Ingress Routes:
-flow route { rd 290:1204; match { destination 10.1.2.0/24; } then {extended-community target:290:1204;  reidrect 290:1101;} }
-flow route { match { destination 10.1.2.0/24; } then { reidrect 290:1104;} }
-flow route { match { destination 10.1.2.0/24; } then {mark : 4; reidrect 290:2001;} }
+flow route { rd 290:1204; match { destination 10.1.2.0/24; } then {extended-community target:290:1204;  redirect 290:1101;} }
+flow route { match { destination 10.1.2.0/24; } then { redirect 290:1104;} }
+flow route { match { destination 10.1.2.0/24; } then {mark 4; redirect 290:2001;} }
 
 Prefix 192.168.3.0/24
     Natted Prefix: None
     User VRF: fp1-private
     Chain: fp1-fn1 fp2-fn2
     ExaBGP Egress Routes:
-flow route { rd 290:1500; match { source 192.168.3.0/24; } then {extended-community target:290:1500;  reidrect 290:1201;} }
-flow route { rd 290:1101; match { source 192.168.3.0/24; } then {extended-community target:290:1101; mark 2; reidrect 290:1002;} }
+flow route { rd 290:1500; match { source 192.168.3.0/24; } then {extended-community target:290:1500;  redirect 290:1201;} }
+flow route { rd 290:1101; match { source 192.168.3.0/24; } then {extended-community target:290:1101; mark 2; redirect 290:1002;} }
     ExaBGP Ingress Routes:
-flow route { rd 290:2202; match { destination 192.168.3.0/24; } then {extended-community target:290:2202; mark 1; reidrect 290:2001;} }
-flow route { match { destination 192.168.3.0/24; } then {mark : 2; reidrect 290:1002;} }
-flow route { match { destination 192.168.3.0/24; } then { reidrect 290:2102;} }
+flow route { rd 290:2202; match { destination 192.168.3.0/24; } then {extended-community target:290:2202; mark 1; redirect 290:2001;} }
+flow route { match { destination 192.168.3.0/24; } then {mark 2; redirect 290:1002;} }
+flow route { match { destination 192.168.3.0/24; } then { redirect 290:2102;} }
 ```
 
 
