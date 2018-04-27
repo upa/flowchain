@@ -474,10 +474,11 @@ class RoutingInformationBase :
                          (flow.prefix, flow.prefix_natted))
             return False
 
-        self.flows.append(flow)
         ret = flow.encode(self.fps)
         if not ret :
             return False
+
+        self.flows.append(flow)
 
         flow.announce()
 
