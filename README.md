@@ -6,9 +6,9 @@
 #### ADD or DELETE Flow
 
 method is GET or POST. Note that if not use NAT, use `none` for prefix_natted
-and preflen_natted.
+and preflen_natted. CHAIN_STRING is "_".join(function_names).
 
-- ADD: http://IPADDR/add/PREFIX/PREFLEN/PREFIX_NATTED/PREFLEN_NATTEX/USERVRF/CHAIN_STRING
+- ADD: http://IPADDR/add/PREFIX/PREFLEN/PREFIX_NATTED/PREFLEN_NATTED/USERVRF/CHAIN_STRING
 - DELETE: http://IPADDR/del/PREFIX/PREFLEN
 
 
