@@ -19,7 +19,7 @@ logger.addHandler(syslog)
 logger.propagate = False
 
 
-from flask import Flask, make_response
+from flask import Flask, make_response, jsonify
 app = Flask(__name__)
 
 rib = None # Routing Information Base for flow routes
@@ -37,7 +37,7 @@ class logger_wrapper :
         self.errmsg = msg
         logger.error("ERROR: %s" % msg)
 
-# XXX: should handle with individual logger_wrapper instance for each request
+# XXX: should handle with individual logger_wrapper instances for each request
 log = logger_wrapper()
 
 
@@ -170,14 +170,11 @@ class Flow :
 
 
     def __str__(self) :
-
-        if self.prefix_natted :
-            return "<%s(%s):%s>" % (self.prefix, self.prefix_natted,
-                                    self.chain)
-        return "<%s:%s>" % (self.prefix, self.chain)
+        return "<%s(%s):%s>" % (self.prefix, self.prefix_natted,
+                                self.chain)
 
 
-    def show(self, extensive = False) :
+    def show(self, extensive = False, html = False) :
 
         fmt = ("Prefix {prefix}\n" +
                "    Natted Prefix: {prefix_natted}\n" +
@@ -196,6 +193,10 @@ class Flow :
             out += "    ExaBGP Ingress Routes:\n"
             out += "\n".join(self.iroutes)
             out += "\n"
+
+        if html :
+            out = "<pre>" + out
+            out = out + "</pre>"
 
         return out
 
@@ -218,6 +219,19 @@ class Flow :
                           start = self.start,
                           chain_string = "_".join(self.chain))
 
+
+    def json(self) :
+
+        return {
+            "prefix" : self.prefix,
+            "prefix_natted" : self.prefix_natted,
+            "start" : self.start,
+            "chain" : self.chain,
+            "exabgp" : {
+                "egress_routes" : self.eroutes,
+                "ingress_routes" : self.iroutes,
+            }
+        }
 
 
     def validate(self, fps) :
@@ -444,6 +458,9 @@ class RoutingInformationBase :
     def __iter__(self) :
         return self.flows.__iter__()
 
+    def len(self) :
+        return len(self.flows)
+
     def find_flow(self, f) :
         
         for flow in self.flows :
@@ -621,6 +638,25 @@ def rest_show_flow_extensive() :
 
     return response
 
+@app.route("/show/flow/html", methods = ["GET"])
+def rest_show_flow_html() :
+
+    outputs = ["<html>"]
+
+    if not rib.len() :
+        outputs.append("no flow installed.")
+    else :
+        for flow in rib :
+            outputs.append(flow.show(extensive = True, html = True))
+
+    outputs.append("</html>")
+
+    response = make_response()
+    response.data = "\n".join(outputs)
+    response.status_code = 200
+
+    return response
+
 
 @app.route("/show/flow/url", methods = ["GET"])
 def rest_show_flow_url() :
@@ -632,6 +668,19 @@ def rest_show_flow_url() :
 
     response = make_response()
     response.data = "\n".join(outputs)
+    response.status_code = 200
+
+    return response
+
+@app.route("/show/flow/json", methods = ["GET"])
+def rest_show_flow_json() :
+
+    flows = []
+
+    for flow in rib :
+        flows.append(flow.json())
+
+    response = jsonify(flows)
     response.status_code = 200
 
     return response
