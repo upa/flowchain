@@ -59,8 +59,10 @@ class Function :
 
 class FunctionPool :
 
-    def __init__(self, name) :
+    def __init__(self, name, community, neighbor) :
         self.name = name
+        self.community = community
+        self.neighbor = neighbor
         self.functions = {} # key:fn.name, value:class Function
         self.inter_fp_rd = {} # key: fp.name, value: rd
         self.user_vrf_rd = {} # key: global/private, value:rd
@@ -125,6 +127,21 @@ class FunctionPools :
                     return rd
         return None
             
+    def find_fp_by_name(self, name) :
+
+        for fp in self.fps :
+
+            # check user-vrf
+            for vn in fp.user_vrf_rd :
+                if vn == name :
+                    return fp
+
+            # check function name
+            for fnname in fp.functions :
+                if fnname == name :
+                    return fp
+
+        return None
 
     def find_function_by_name(self,fnname) :
 
@@ -313,28 +330,47 @@ class Flow :
         Note that after cgn == ture Function, use prefix_natted.
         """
         
-        flowfmt = ("flow route {{ "
+        flowfmt = ("neighbor {neighbor} "
+                   + "UPDATE flow route {{ "
                    + "rd {rd}; "
                    + "match {{ {direct} {prefix}; }} "
                    + "then {{"
+                   + "community [{community}]; "
                    + "extended-community target:{rd}; "
                    + "{mark} "
                    + "redirect {redirect};"
                    + "}} }}")
 
         # Step 1. User VRF to 1st VRF
+        user_fp = fps.find_fp_by_name(self.start)
         user_rd = fps.find_rd_of_user_vrf(self.start)
         next_fn = fps.find_function_by_name(self.chain[0])
         if not user_rd :
             log.error("Cannot find user VRF for '%s'" % self.start)
             return False
+        if not user_fp :
+            log.error("Cannot find FP for name '%s'" % self.start)
+            return False
         if not next_fn :
-            lgoger.error("Cannot find function '%s'" % self.chain[0])
-            return Flase
+            log.error("Cannot find function '%s'" % self.chain[0])
+            return False
         
-        eroute = flowfmt.format(rd = user_rd, direct = "source",
+        # check that is 1st VRF in the same FP of User VRF
+        if user_fp == next_fn.fp :
+            mark = ""
+            redirect = next_fn.rdbot
+        else :
+            mark = "mark %d;" % next_fn.markbot
+            redirect = fps.find_inter_fp_rd(user_fp, next_fn.fp)
+
+        eroute = flowfmt.format(rd = user_rd,
+                                community = user_fp.community,
+                                neighbor = user_fp.neighbor,
+                                direct = "source",
                                 prefix = self.prefix,
-                                mark = "", redirect = next_fn.rdbot)
+                                mark = mark,
+                                redirect = redirect)
+
         self.eroutes.append(eroute)
 
         
@@ -374,13 +410,19 @@ class Flow :
 
             # Egress Route
             rd = prev_fn.rdtop
-            eroute = flowfmt.format(rd = rd, direct = "source",
+            eroute = flowfmt.format(rd = rd,
+                                    community = prev_fn.fp.community,
+                                    neighbor = prev_fn.fp.neighbor,
+                                    direct = "source",
                                     prefix = prefix,
                                     mark = mark_egress,
                                     redirect = redirect_egress)
             # Ingress Route
             rd = next_fn.rdbot
-            iroute = flowfmt.format(rd = rd, direct = "destination",
+            iroute = flowfmt.format(rd = rd,
+                                    community = next_fn.fp.community,
+                                    neighbor = next_fn.fp.neighbor,
+                                    direct = "destination",
                                     prefix = prefix,
                                     mark = mark_ingress,
                                     redirect = redirect_ingress)
@@ -390,14 +432,21 @@ class Flow :
 
 
         # Step 4.
-        flowfmt = ("flow route {{ "
+        flowfmt = ("neighbor {neighbor} "
+                   + "UPDATE flow route {{ "
                    + "match {{ destination {prefix}; }} "
                    + "then {{"
+                   + "community [{community}]; "
                    + "{mark} "
                    + "redirect {redirect};"
                    + "}} }}")
 
         last_fn = fps.find_function_by_name(self.chain[len(self.chain) - 1])
+        if last_fn.cgn :
+            # if last FN is CGN, Step 2 does not switch cgn_passed.
+            cgn_passed = True
+
+
         if cgn_passed and self.prefix_natted :
             prefix = self.prefix_natted
         else :
@@ -406,16 +455,20 @@ class Flow :
         for fp in fps.fps :
             if last_fn.fp == fp :
                 # Fp is the same fp of the last Function
-                iroute = flowfmt.format(prefix = prefix,
-                                        redirect = last_fn.rdtop,
-                                        mark = "")
+                iroute = flowfmt.format(community = fp.community,
+                                        neighbor = fp.neighbor,
+                                        prefix = prefix,
+                                        mark = "",
+                                        redirect = last_fn.rdtop)
             else :
                 # For different FP flow route
                 inter_fp_rd = fps.find_inter_fp_rd(fp, last_fn.fp)
                 mark = "mark %d;" % last_fn.marktop
-                iroute = flowfmt.format(prefix = prefix,
-                                        redirect = inter_fp_rd,
-                                        mark = mark)
+                iroute = flowfmt.format(community = fp.community,
+                                        neighbor = fp.neighbor,
+                                        prefix = prefix,
+                                        mark = mark,
+                                        redirect = inter_fp_rd)
             self.iroutes.append(iroute)
 
         return True
@@ -423,11 +476,11 @@ class Flow :
 
     def announce(self) :
         for r in self.eroutes :
-            sys.stdout.write("announce %s\n" % r)
+            sys.stdout.write("%s\n" % r.replace("UPDATE", "announce"))
             sys.stdout.flush()
             time.sleep(0.2)
         for r in self.iroutes :
-            sys.stdout.write("announce %s\n" % r)
+            sys.stdout.write("%s\n" % r.replace("UPDATE", "announce"))
             sys.stdout.flush()
             time.sleep(0.2)
         return
@@ -435,11 +488,11 @@ class Flow :
 
     def withdraw(self) :
         for r in self.eroutes :
-            sys.stdout.write("withdraw %s\n" % r)
+            sys.stdout.write("%s\n" % r.replace("UPDATE", "withdraw"))
             sys.stdout.flush()
             time.sleep(0.2)
         for r in self.iroutes :
-            sys.stdout.write("withdraw %s\n" % r)
+            sys.stdout.write("%s\n" % r.replace("UPDATE", "withdraw"))
             sys.stdout.flush()
             time.sleep(0.2)
         return
@@ -524,7 +577,8 @@ def load_config(configjson) :
     for fpname, v in cfg.items() :
         log.info("Load Function Pool %s" % fpname)
 
-        fp = FunctionPool(fpname)
+        fp = FunctionPool(fpname,
+                          cfg[fpname]["community"], cfg[fpname]["neighbor"])
 
         for f in v["function"] :
             log.info("Add Function %s to %s" % (f["name"], fpname))

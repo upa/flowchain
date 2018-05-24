@@ -4,6 +4,9 @@
 {
     "fp1" : {
 
+	"community" : "290:1000",
+	"neighbor" : "45.0.0.1",
+
 	"function" : [
 	    {
 		"name" : "fp1-fn1",
@@ -42,6 +45,9 @@
     },
 
     "fp2" : {
+
+	"community" : "290:2000",
+	"neighbor" : "45.0.0.2",
 
 	"function" : [
 	    {
