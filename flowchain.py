@@ -583,7 +583,7 @@ def load_config(configjson) :
         for f in v["function"] :
             log.info("Add Function %s to %s" % (f["name"], fpname))
 
-            fn = Function(f["name"], f["rd-top"], f["rd-bottom"],
+            fn = Function(f["name"], f["rd-top"], f["rd-bot"],
                           f["mark-top"], f["mark-bottom"],
                           f["cgn"])
             fp.add_function(fn)
