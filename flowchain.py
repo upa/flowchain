@@ -143,7 +143,7 @@ class FunctionPools :
 
         return None
 
-    def find_function_by_name(self,fnname) :
+    def find_function_by_name(self, fnname) :
 
         for fp in self.fps :
             if fnname in fp.functions :
@@ -156,6 +156,54 @@ class FunctionPools :
             return None
 
         return fp_from.inter_fp_rd[fp_to.name]
+
+
+    def generate_tos_flows(self) :
+
+        eroutes = []
+        iroutes = []
+
+        flowfmt = ("neighbor {neighbor} "
+                   + "announce flow route {{ "
+                   + "rd {rd}; "
+                   + "match {{ dscp {mark}; }} "
+                   + "then {{"
+                   + "community [{community}]; "
+                   + "extended-community target:{rd}; "
+                   + "redirect {redirect}; "
+                   + "}} }}")
+
+        for fp in self.fps :
+            for fnname, fn in fp.functions.items() :
+
+                for efp in self.fps :
+                    if efp == fp : continue
+                    interfp_rd = self.find_inter_fp_rd(efp, fp)
+                    eroute = flowfmt.format(neighbor = fp.neighbor,
+                                            rd = interfp_rd,
+                                            mark = fn.markbot,
+                                            community = fp.community,
+                                            redirect = fn.rdbot)
+                    eroutes.append(eroute)
+
+                    iroute = flowfmt.format(neighbor = fp.neighbor,
+                                            rd = interfp_rd,
+                                            mark = fn.marktop,
+                                            community = fp.community,
+                                            redirect = fn.rdtop)
+                    iroutes.append(iroute)
+
+
+        for route in eroutes :
+            logger.info("announce inter-fp TOS flow routes for Egress.")
+            sys.stdout.write("%s\n" % route)
+            sys.stdout.flush()
+
+        for route in iroutes :
+            logger.info("announce inter-fp TOS flow routes for Ingress.")
+            sys.stdout.write("%s\n" % route)
+            sys.stdout.flush()
+
 
     
 class Flow :
@@ -341,37 +389,38 @@ class Flow :
                    + "redirect {redirect};"
                    + "}} }}")
 
-        # Step 1. User VRF to 1st VRF
-        user_fp = fps.find_fp_by_name(self.start)
+        # Step 1. bring flows to the first fp
         user_rd = fps.find_rd_of_user_vrf(self.start)
+        first_fp = fps.find_fp_by_name(self.chain[0])
         next_fn = fps.find_function_by_name(self.chain[0])
+
         if not user_rd :
             log.error("Cannot find user VRF for '%s'" % self.start)
             return False
-        if not user_fp :
+        if not first_fp :
             log.error("Cannot find FP for name '%s'" % self.start)
             return False
         if not next_fn :
             log.error("Cannot find function '%s'" % self.chain[0])
             return False
-        
-        # check that is 1st VRF in the same FP of User VRF
-        if user_fp == next_fn.fp :
-            mark = ""
-            redirect = next_fn.rdbot
-        else :
-            mark = "mark %d;" % next_fn.markbot
-            redirect = fps.find_inter_fp_rd(user_fp, next_fn.fp)
 
-        eroute = flowfmt.format(rd = user_rd,
-                                community = user_fp.community,
-                                neighbor = user_fp.neighbor,
-                                direct = "source",
-                                prefix = self.prefix,
-                                mark = mark,
-                                redirect = redirect)
+        for fp in fps.fps :
+            if fp == first_fp :
+                mark = ""
+                redirect = next_fn.rdbot
+            else :
+                mark = "mark %d;" % next_fn.markbot
+                redirect = fps.find_inter_fp_rd(fp, next_fn.fp)
+            
+            eroute = flowfmt.format(rd = user_rd,
+                                    community =fp.community,
+                                    neighbor = fp.neighbor,
+                                    direct = "source",
+                                    prefix = self.prefix,
+                                    mark = mark,
+                                    redirect = redirect)
+            self.eroutes.append(eroute)
 
-        self.eroutes.append(eroute)
 
         
         # Step 2.
@@ -535,7 +584,7 @@ class RoutingInformationBase :
         log.info("Add Flow: %s" % flow)
 
         if not flow.validate(self.fps) :
-            log.error("Valudation Failed: %s" % flow)
+            log.error("Validation Failed: %s" % flow)
             return False
         
         if (self.find_flow_by_prefix(flow.prefix) or
@@ -788,6 +837,8 @@ def main() :
 
     fps = FunctionPools(load_config(CONFIG_JSON))
     rib = RoutingInformationBase(fps)
+
+    fps.generate_tos_flows()
     
     app.run(host = "0.0.0.0", debug = True)
 
