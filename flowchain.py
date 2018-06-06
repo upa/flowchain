@@ -163,15 +163,26 @@ class FunctionPools :
         eroutes = []
         iroutes = []
 
-        flowfmt = ("neighbor {neighbor} "
-                   + "announce flow route {{ "
-                   + "rd {rd}; "
-                   + "match {{ dscp {mark}; }} "
-                   + "then {{"
-                   + "community [{community}]; "
-                   + "extended-community target:{rd}; "
-                   + "redirect {redirect}; "
-                   + "}} }}")
+        flowfmt4 = ("neighbor {neighbor} "
+                    + "announce flow route {{ "
+                    + "rd {rd}; "
+                    + "match {{ destination 0.0.0.0/0; dscp {mark}; }} "
+                    + "then {{"
+                    + "community [{community}]; "
+                    + "extended-community target:{rd}; "
+                    + "redirect {redirect}; "
+                    + "}} }}")
+
+        flowfmt6 = ("neighbor {neighbor} "
+                    + "announce flow route {{ "
+                    + "rd {rd}; "
+                    + "match {{ destination 0::0/0; dscp {mark}; }} "
+                    + "then {{"
+                    + "community [{community}]; "
+                    + "extended-community target:{rd}; "
+                    + "redirect {redirect}; "
+                    + "}} }}")
+
 
         for fp in self.fps :
             for fnname, fn in fp.functions.items() :
@@ -179,19 +190,31 @@ class FunctionPools :
                 for efp in self.fps :
                     if efp == fp : continue
                     interfp_rd = self.find_inter_fp_rd(efp, fp)
-                    eroute = flowfmt.format(neighbor = fp.neighbor,
-                                            rd = interfp_rd,
-                                            mark = fn.markbot,
-                                            community = fp.community,
-                                            redirect = fn.rdbot)
-                    eroutes.append(eroute)
+                    eroute4 = flowfmt4.format(neighbor = fp.neighbor,
+                                              rd = interfp_rd,
+                                              mark = fn.markbot,
+                                              community = fp.community,
+                                              redirect = fn.rdbot)
+                    eroute6 = flowfmt6.format(neighbor = fp.neighbor,
+                                              rd = interfp_rd,
+                                              mark = fn.markbot,
+                                              community = fp.community,
+                                              redirect = fn.rdbot)
+                    eroutes.append(eroute4)
+                    eroutes.append(eroute6)
 
-                    iroute = flowfmt.format(neighbor = fp.neighbor,
-                                            rd = interfp_rd,
-                                            mark = fn.marktop,
-                                            community = fp.community,
-                                            redirect = fn.rdtop)
-                    iroutes.append(iroute)
+                    iroute4 = flowfmt4.format(neighbor = fp.neighbor,
+                                              rd = interfp_rd,
+                                              mark = fn.marktop,
+                                              community = fp.community,
+                                              redirect = fn.rdtop)
+                    iroute6 = flowfmt6.format(neighbor = fp.neighbor,
+                                              rd = interfp_rd,
+                                              mark = fn.marktop,
+                                              community = fp.community,
+                                              redirect = fn.rdtop)
+                    iroutes.append(iroute4)
+                    iroutes.append(iroute6)
 
 
         for route in eroutes :
@@ -588,7 +611,8 @@ class RoutingInformationBase :
             return False
         
         if (self.find_flow_by_prefix(flow.prefix) or
-            self.find_flow_by_prefix(flow.prefix_natted)) :
+            (flow.prefix_natted and 
+             self.find_flow_by_prefix(flow.prefix_natted))) :
             log.error("Flow for Prefix '%s(%s)' already exists" %
                          (flow.prefix, flow.prefix_natted))
             return False
@@ -684,6 +708,53 @@ def rest_add_flow(prefix, preflen, prefix_natted, preflen_natted,
         return response
 
     response.data = "Flow : %s is added" % flow
+    response.status_code = 200
+
+    return response
+
+
+@app.route("/override/<prefix>/<preflen>/<prefix_natted>/<preflen_natted>/" +
+           "<start>/<chain_string>",
+           methods = ["GET", "POST"])
+def rest_override_flow(prefix, preflen, prefix_natted, preflen_natted,
+                       start, chain_string) :
+    """
+    @start : user vrf name
+    @prefix: user prefix
+    @prefix_natted: user prefix after NAT. if not, use 'none'.
+    @chain : <fpname>_<fpname>_<fpname>...
+    """
+    
+    chain = chain_string.split("_")
+    prefix += "/" + preflen
+    if prefix_natted == "none" :
+        prefix_natted = None
+    else :
+        prefix_natted += "/" + preflen_natted
+
+
+    response = make_response()
+
+    flow = Flow(start, chain, prefix, prefix_natted)
+
+
+    if not flow.validate(rib.fps) :
+        response.data = log.errmsg
+        response.status_code = 400
+        return response
+
+    if (rib.find_flow_by_prefix(flow.prefix) or
+        (flow.prefix_natted and 
+         rib.find_flow_by_prefix(flow.prefix_natted))) :
+        remove_flow = rib.find_flow_by_prefix(prefix)
+        rib.delete_flow(remove_flow)
+
+    if not rib.add_flow(flow) :
+        response.data = log.errmsg
+        response.status_code = 400
+        return response
+
+    response.data = "Flow : %s is overridden" % flow
     response.status_code = 200
 
     return response
