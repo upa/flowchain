@@ -550,11 +550,11 @@ class Flow :
         for r in self.eroutes :
             sys.stdout.write("%s\n" % r.replace("UPDATE", "announce"))
             sys.stdout.flush()
-            time.sleep(0.2)
         for r in self.iroutes :
             sys.stdout.write("%s\n" % r.replace("UPDATE", "announce"))
             sys.stdout.flush()
-            time.sleep(0.2)
+        time.sleep(0.2)
+
         return
         
 
@@ -562,11 +562,10 @@ class Flow :
         for r in self.eroutes :
             sys.stdout.write("%s\n" % r.replace("UPDATE", "withdraw"))
             sys.stdout.flush()
-            time.sleep(0.2)
         for r in self.iroutes :
             sys.stdout.write("%s\n" % r.replace("UPDATE", "withdraw"))
             sys.stdout.flush()
-            time.sleep(0.2)
+        time.sleep(0.2)
         return
 
     
@@ -747,6 +746,9 @@ def rest_override_flow(prefix, preflen, prefix_natted, preflen_natted,
         (flow.prefix_natted and 
          rib.find_flow_by_prefix(flow.prefix_natted))) :
         remove_flow = rib.find_flow_by_prefix(prefix)
+        if not remove_flow :
+            remove_flow = rib.find_flow_by_prefix(flow.prefix_natted)
+
         rib.delete_flow(remove_flow)
 
     if not rib.add_flow(flow) :
