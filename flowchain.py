@@ -64,7 +64,10 @@ class FunctionPool :
         self.community = community
         self.neighbor = neighbor
         self.functions = {} # key:fn.name, value:class Function
-        self.inter_fp_rd = {} # key: fp.name, value: rd
+        self.inter_fp_rd = {
+            "global" : {}, # key: fp.name, value: rd
+            "private" : {},
+        }
         self.user_vrf_rd = {} # key: global/private, value:rd
         return
 
@@ -91,12 +94,12 @@ class FunctionPool :
         return None
 
 
-    def add_inter_fp_rd(self, fpname, rd) :
+    def add_inter_fp_rd(self, slicename, fpname, rd) :
 
-        if fpname in self.inter_fp_rd :
+        if fpname in self.inter_fp_rd[slicename] :
             raise RuntimeError('Duplicated Inter FP RD "%s" in %s',
                                rd, self.name)
-        self.inter_fp_rd[fpname] = rd
+        self.inter_fp_rd[slicename][fpname] = rd
         return
 
 
@@ -150,12 +153,17 @@ class FunctionPools :
                 return fp.functions[fnname]
         return None
 
-    def find_inter_fp_rd(self, fp_from, fp_to) :
+    def find_inter_fp_rd(self, fp_from, fp_to, is_private) :
 
-        if not fp_to.name in fp_from.inter_fp_rd :
+        if is_private :
+            inter_fp_rd = fp_from.inter_fp_rd["private"]
+        else :
+            inter_fp_rd = fp_from.inter_fp_rd["global"]
+                
+        if not fp_to.name in inter_fp_rd :
             return None
 
-        return fp_from.inter_fp_rd[fp_to.name]
+        return inter_fp_rd[fp_to.name]
 
 
     def generate_tos_flows(self) :
@@ -184,12 +192,12 @@ class FunctionPools :
                     + "}} }}")
 
 
+        # Global
         for fp in self.fps :
             for fnname, fn in fp.functions.items() :
-
                 for efp in self.fps :
                     if efp == fp : continue
-                    interfp_rd = self.find_inter_fp_rd(efp, fp)
+                    interfp_rd = self.find_inter_fp_rd(efp, fp, False)
                     eroute4 = flowfmt4.format(neighbor = fp.neighbor,
                                               rd = interfp_rd,
                                               mark = fn.markbot,
@@ -215,6 +223,39 @@ class FunctionPools :
                                               redirect = fn.rdtop)
                     iroutes.append(iroute4)
                     iroutes.append(iroute6)
+
+        # Private
+        for fp in self.fps :
+            for fnname, fn in fp.functions.items() :
+                for efp in self.fps :
+                    if efp == fp : continue
+                    interfp_rd = self.find_inter_fp_rd(efp, fp, True)
+                    eroute4 = flowfmt4.format(neighbor = fp.neighbor,
+                                              rd = interfp_rd,
+                                              mark = fn.markbot,
+                                              community = fp.community,
+                                              redirect = fn.rdbot)
+                    eroute6 = flowfmt6.format(neighbor = fp.neighbor,
+                                              rd = interfp_rd,
+                                              mark = fn.markbot,
+                                              community = fp.community,
+                                              redirect = fn.rdbot)
+                    eroutes.append(eroute4)
+                    eroutes.append(eroute6)
+
+                    iroute4 = flowfmt4.format(neighbor = fp.neighbor,
+                                              rd = interfp_rd,
+                                              mark = fn.marktop,
+                                              community = fp.community,
+                                              redirect = fn.rdtop)
+                    iroute6 = flowfmt6.format(neighbor = fp.neighbor,
+                                              rd = interfp_rd,
+                                              mark = fn.marktop,
+                                              community = fp.community,
+                                              redirect = fn.rdtop)
+                    iroutes.append(iroute4)
+                    iroutes.append(iroute6)
+
 
 
         for route in eroutes :
@@ -322,6 +363,19 @@ class Flow :
         }
 
 
+    def is_cgn_included(self, fps) :
+        
+        # does this chain include CGN?
+        for fnname in self.chain :
+            fn = fps.find_function_by_name(fnname)
+            if not fn :
+                log.error("Cannot find Function for '%s'" % fnname)
+                return False
+            if fn.cgn :
+                return True
+        return False
+
+
     def validate(self, fps) :
         """
         1. check is prefix correct
@@ -348,10 +402,20 @@ class Flow :
                          (self.start, self))
             return False
 
+        inter_fp_cgn = True
+        cgn_passed = False
+        cgn_exists = self.is_cgn_included(fps)
+
         for x in range(len(self.chain) - 1) :
 
             prev_fn = fps.find_function_by_name(self.chain[x])
             next_fn = fps.find_function_by_name(self.chain[x + 1])
+
+            if not cgn_exists :
+                inter_fp_cgn = False
+            else :
+                if prev_fn.cgn :
+                    inter_fp_cgn = False
 
             if not prev_fn :
                 log.error("Cannot find function '%s' for flow %s" %
@@ -363,11 +427,13 @@ class Flow :
                 return False
 
             if prev_fn.fp != next_fn.fp :
-                if not fps.find_inter_fp_rd(prev_fn.fp, next_fn.fp) :
+                if not fps.find_inter_fp_rd(prev_fn.fp, next_fn.fp,
+                                            inter_fp_cgn) :
                     log.error("Cannot find inter-fp-rd from %s to %s" %
                                  (prev_fn.fp.name, next_fn.fp.name))
                     return False
-                if not fps.find_inter_fp_rd(next_fn.fp, prev_fn.fp) :
+                if not fps.find_inter_fp_rd(next_fn.fp, prev_fn.fp,
+                                            inter_fp_cgn) :
                     log.error("Cannot find inter-fp-rd from %s to %s" %
                                  (next_fn.fp.name, prev_fn.fp.name))
                     return False
@@ -412,6 +478,9 @@ class Flow :
                    + "redirect {redirect};"
                    + "}} }}")
 
+        # does this chain include CGN?
+        cgn_exists = self.is_cgn_included(fps)
+
         # Step 1. bring flows to the first fp
         user_rd = fps.find_rd_of_user_vrf(self.start)
         first_fp = fps.find_fp_by_name(self.chain[0])
@@ -433,7 +502,7 @@ class Flow :
                 redirect = next_fn.rdbot
             else :
                 mark = "mark %d;" % next_fn.markbot
-                redirect = fps.find_inter_fp_rd(fp, next_fn.fp)
+                redirect = fps.find_inter_fp_rd(fp, next_fn.fp, cgn_exists)
             
             eroute = flowfmt.format(rd = user_rd,
                                     community =fp.community,
@@ -448,16 +517,22 @@ class Flow :
         
         # Step 2.
         cgn_passed = False
+        if not cgn_exists :
+            inter_fp_cgn = False
+        else :
+            inter_fp_cgn = True
+            
+
         for x in range(len(self.chain) - 1) :
 
             prev_fn = fps.find_function_by_name(self.chain[x])
             next_fn = fps.find_function_by_name(self.chain[x + 1])
 
-
             # If CGN passed, switch target prefix to prefix_natted
             if prev_fn.cgn :
                 cgn_passed = True
-
+                inter_fp_cgn = False
+                
             mark_egress = ""
             mark_ingress = ""
             redirect_egress = next_fn.rdbot
@@ -466,12 +541,14 @@ class Flow :
             # Check is this inter-fp flow ?
             if prev_fn.fp != next_fn.fp :
                 # Egress
-                inter_fp_rd = fps.find_inter_fp_rd(prev_fn.fp, next_fn.fp)
+                inter_fp_rd = fps.find_inter_fp_rd(prev_fn.fp, next_fn.fp,
+                                                   inter_fp_cgn)
                 mark_egress = "mark %d;" % next_fn.markbot
                 redirect_egress = inter_fp_rd
 
                 # Ingress
-                inter_fp_rd = fps.find_inter_fp_rd(next_fn.fp, prev_fn.fp)
+                inter_fp_rd = fps.find_inter_fp_rd(next_fn.fp, prev_fn.fp,
+                                                   inter_fp_cgn)
                 mark_ingress = "mark %d;" % prev_fn.marktop
                 redirect_ingress = inter_fp_rd
 
@@ -534,7 +611,8 @@ class Flow :
                                         redirect = last_fn.rdtop)
             else :
                 # For different FP flow route
-                inter_fp_rd = fps.find_inter_fp_rd(fp, last_fn.fp)
+                inter_fp_rd = fps.find_inter_fp_rd(fp, last_fn.fp,
+                                                   inter_fp_cgn)
                 mark = "mark %d;" % last_fn.marktop
                 iroute = flowfmt.format(community = fp.community,
                                         neighbor = fp.neighbor,
@@ -660,8 +738,12 @@ def load_config(configjson) :
                           f["cgn"])
             fp.add_function(fn)
 
-        for fpname, rd in v["inter-fp-rd"].items() :
-            fp.add_inter_fp_rd(fpname, rd)
+        for fpname, rd in v["inter-fp-rd"]["global"].items() :
+            fp.add_inter_fp_rd("global", fpname, rd)
+
+        for fpname, rd in v["inter-fp-rd"]["private"].items() :
+            fp.add_inter_fp_rd("private", fpname, rd)
+
             
         for vrfname, rd in v["user-vrf-rd"].items() :
             fp.add_user_vrf_rd(vrfname, rd)
