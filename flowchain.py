@@ -594,7 +594,7 @@ class Flow :
         if last_fn.cgn :
             # if last FN is CGN, Step 2 does not switch cgn_passed.
             cgn_passed = True
-
+            inter_fp_cgn = False
 
         if cgn_passed and self.prefix_natted :
             prefix = self.prefix_natted
