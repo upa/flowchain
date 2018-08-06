@@ -712,6 +712,13 @@ class RoutingInformationBase :
         self.flows.remove(flow)
         return
         
+    def destroy_all_flows(self) :
+
+        log.info("Destroy All Flows")
+
+        while self.flows :
+            flow = self.flows.pop()
+            flow.withdraw()
 
 
 def load_config(configjson) :
@@ -865,6 +872,18 @@ def rest_delete_flow(prefix, preflen) :
 
     return response
     
+
+@app.route("/destroy", methods = ["GET", "POST"])
+def rest_destroy() :
+
+    rib.destroy_all_flows()
+    response = make_response()
+
+    response.data = "Destroyed all flows"
+    response.status_code = 200
+
+    return response
+
 
 @app.route("/show/flow", methods = ["GET"])
 def rest_show_flow() :
