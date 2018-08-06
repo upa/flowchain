@@ -631,7 +631,6 @@ class Flow :
         for r in self.iroutes :
             sys.stdout.write("%s\n" % r.replace("UPDATE", "announce"))
             sys.stdout.flush()
-        time.sleep(0.2)
 
         return
         
@@ -643,7 +642,7 @@ class Flow :
         for r in self.iroutes :
             sys.stdout.write("%s\n" % r.replace("UPDATE", "withdraw"))
             sys.stdout.flush()
-        time.sleep(0.2)
+
         return
 
     
